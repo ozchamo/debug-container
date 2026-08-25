@@ -1,0 +1,20 @@
+FROM registry.access.redhat.com/ubi9/ubi:latest
+
+# Install Apache (httpd), Python 3, OpenSSH client, ping (iputils), and mount utilities (util-linux)
+RUN dnf --disableplugin=subscription-manager install -y \
+    httpd \
+    python3 \
+    python3-pip \
+    openssh-clients \
+    iputils \
+    util-linux \
+    && dnf clean all
+
+# Create the custom index.html
+RUN echo "<h1>Welcome to debug-container</h1>" > /var/www/html/index.html
+
+# Expose HTTP port
+EXPOSE 80
+
+# Start Apache in the foreground
+CMD ["/usr/sbin/httpd", "-D", "FOREGROUND"]
