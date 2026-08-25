@@ -1,6 +1,12 @@
+# Use Red Hat Universal Base Image 9
 FROM registry.access.redhat.com/ubi9/ubi:latest
 
-# Install Apache (httpd), Python 3, OpenSSH client, ping (iputils), and mount utilities (util-linux)
+# Install required packages and system tools:
+# - httpd: Apache HTTP Server
+# - python3 & python3-pip: Python interpreter and package installer
+# - openssh-clients: OpenSSH utilities (ssh, scp, sftp)
+# - iputils: Network diagnosis utilities including ping
+# - util-linux: Essential system utilities including mount and umount
 RUN dnf --disableplugin=subscription-manager install -y \
     httpd \
     python3 \
@@ -10,17 +16,27 @@ RUN dnf --disableplugin=subscription-manager install -y \
     util-linux \
     && dnf clean all
 
-# Configure httpd.conf:
-# 1. Change Listen port from 80 to 8080
-# 2. Add PidFile /tmp/httpd.pid directive
+# Configure Apache (httpd.conf):
+# 1. Update the default privileged listen port (80) to non-privileged (8080)
+# 2. Append the PidFile directive pointing to /tmp/httpd.pid
 RUN sed -i 's/^Listen 80/Listen 8080/' /etc/httpd/conf/httpd.conf && \
     echo "PidFile /tmp/httpd.pid" >> /etc/httpd/conf/httpd.conf
 
-# Create the custom index.html
+# Set up the custom landing page
 RUN echo "<h1>Welcome to debug-container</h1>" > /var/www/html/index.html
 
-# Expose port 8080
+# Prepare file permissions for non-root execution (OpenShift/Kubernetes arbitrary UID compatible):
+# - Ensure log, runtime, cache, and document directories are writable by group 0 (root) and apache
+# - Grants group read/write/execute permissions to support execution under arbitrary user IDs
+RUN mkdir -p /var/run/httpd /var/log/httpd /var/www/html /run/httpd && \
+    chown -R apache:root /var/run/httpd /var/log/httpd /var/www/html /etc/httpd /run/httpd && \
+    chmod -R g+rwX /var/run/httpd /var/log/httpd /var/www/html /etc/httpd /run/httpd /tmp
+
+# Switch to the non-root Apache user (UID 48)
+USER apache
+
+# Expose the non-privileged port
 EXPOSE 8080
 
-# Start Apache in the foreground
+# Run Apache in the foreground
 CMD ["/usr/sbin/httpd", "-D", "FOREGROUND"]
