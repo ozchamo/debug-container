@@ -1,40 +1,29 @@
-# Use Red Hat Universal Base Image 9
-FROM registry.access.redhat.com/ubi9/httpd-24:latest
+FROM registry.access.redhat.com/ubi9/ubi:latest
 
-# Install required packages and system tools:
-# - httpd: Apache HTTP Server
-# - python3 & python3-pip: Python interpreter and package installer
-# - openssh-clients: OpenSSH utilities (ssh, scp, sftp)
-# - iputils: Network diagnosis utilities including ping
-# - util-linux: Essential system utilities including mount and umount
-RUN python3 \
-    python3-pip \
-    openssh-clients \
+# Install required tools and Apache (httpd)
+RUN dnf install -y \
+    bash \
     iputils \
+    openssh-clients \
     util-linux \
+    httpd \
+    sed \
     && dnf clean all
 
-# Configure Apache (httpd.conf):
-# 1. Update the default privileged listen port (80) to non-privileged (8080)
-# 2. Append the PidFile directive pointing to /tmp/httpd.pid
-RUN sed -i 's/^Listen 80/Listen 8080/' /etc/httpd/conf/httpd.conf && \
-    echo "PidFile /tmp/httpd.pid" >> /etc/httpd/conf/httpd.conf
+# Configure Apache to run as a non-root user
+# 1. Add PidFile directive
+# 2. Change Listen port to 8080
+# 3. Adjust permissions so standard non-root user (UID 1001) can run httpd
+RUN echo "PidFile /tmp/httpd.pid" >> /etc/httpd/conf/httpd.conf && \
+    sed -i 's/^Listen 80/Listen 8080/' /etc/httpd/conf/httpd.conf && \
+    echo "<h1>Welcome to debug-container</h1>" > /var/www/html/index.html && \
+    mkdir -p /var/log/httpd /run/httpd && \
+    chown -R 1001:0 /etc/httpd /var/www/html /var/log/httpd /run/httpd /tmp && \
+    chmod -R g=u /etc/httpd /var/www/html /var/log/httpd /run/httpd /tmp
 
-# Set up the custom landing page
-RUN echo "<h1>Welcome to debug-container</h1>" > /var/www/html/index.html
+# Switch to non-root user
+USER 1001
 
-# Prepare file permissions for non-root execution (OpenShift/Kubernetes arbitrary UID compatible):
-# - Ensure log, runtime, cache, and document directories are writable by group 0 (root) and apache
-# - Grants group read/write/execute permissions to support execution under arbitrary user IDs
-RUN mkdir -p /var/run/httpd /var/log/httpd /var/www/html /run/httpd && \
-    chown -R apache:root /var/run/httpd /var/log/httpd /var/www/html /etc/httpd /run/httpd && \
-    chmod -R g+rwX /var/run/httpd /var/log/httpd /var/www/html /etc/httpd /run/httpd /tmp
-
-# Switch to the non-root Apache user (UID 48)
-USER apache
-
-# Expose the non-privileged port
 EXPOSE 8080
 
-# Run Apache in the foreground
-CMD ["/usr/sbin/httpd", "-D", "FOREGROUND"]
+CMD ["httpd", "-D", "FOREGROUND"]
