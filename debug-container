@@ -7,9 +7,7 @@ FROM registry.access.redhat.com/ubi9/httpd-24:latest
 # - openssh-clients: OpenSSH utilities (ssh, scp, sftp)
 # - iputils: Network diagnosis utilities including ping
 # - util-linux: Essential system utilities including mount and umount
-RUN dnf --disableplugin=subscription-manager install -y \
-    httpd \
-    python3 \
+RUN python3 \
     python3-pip \
     openssh-clients \
     iputils \
