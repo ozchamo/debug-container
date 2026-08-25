@@ -15,8 +15,8 @@ RUN dnf --disableplugin=subscription-manager install -y \
 # 2. Adjust directory permissions for Apache runtime, logs, and document root
 RUN sed -i 's/^Listen 80/Listen 8080/' /etc/httpd/conf/httpd.conf && \
     mkdir -p /var/run/httpd /var/log/httpd /var/www/html && \
-    chown -R apache:apache /var/run/httpd /var/log/httpd /var/www/html /etc/httpd && \
-    chmod -R g+rwx /var/run/httpd /var/log/httpd /var/www/html
+    chown -R apache:apache /run/httpd /var/run/httpd /var/log/httpd /var/www/html /etc/httpd && \
+    chmod -R g+rwx /var/run/httpd /var/log/httpd /var/www/html 
 
 # Create the custom index.html
 RUN echo "<h1>Welcome to debug-container</h1>" > /var/www/html/index.html && \
